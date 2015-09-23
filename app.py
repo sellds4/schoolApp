@@ -280,12 +280,12 @@ def logout():
     return redirect('/')
 
 # Save e-mail to database and send to success page
-@app.route('/api/student', methods=['POST', 'GET'])
+@app.route('/api/student', methods=['POST'])
 def create_student():
-    email = request.json.get('email','')
-    password = request.json.get('password','')
-    first_name = request.json.get('first_name','')
-    last_name = request.json.get('last_name','')
+    email = request.form['email']
+    password = request.form['password']
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
     # Check that email does not already exist (not a great query, but works)
     # if not session.query(User).filter(User.email == email).count():
     new_user = Student(email, password, first_name, last_name)

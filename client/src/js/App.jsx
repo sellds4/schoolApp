@@ -1,3 +1,3 @@
-var Parent = require('./components/Parent.jsx');
+var RegisterForm = require('./components/RegisterForm.jsx');
 
-React.render(<Parent />, document.getElementById('app'));
+React.render(<RegisterForm />, document.getElementById('app'));
