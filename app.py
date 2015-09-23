@@ -248,10 +248,6 @@ class SchoolJsonSerializer(JsonSerializer):
     __object_class__ = School
 
 # Routes
-@app.route('/')
-def index():
-    return app.send_static_file('index.html')
-
 @app.route('/api/login', methods=['GET', 'POST'])
 def login():
     # Here we use a class of some kind to represent and validate our
@@ -327,6 +323,13 @@ def get_schools():
     for x in school_list:
         print x.state
     return jsonify(json_list=SchoolJsonSerializer().serialize(school_list[0]))
+
+# @app.route('/', defaults={'path': ''})
+# @app.route('/<path:path>')
+@app.route('/')
+@app.route('/register')
+def index():
+    return app.send_static_file('index.html')
 
 if __name__ == '__main__':
     app.debug = True

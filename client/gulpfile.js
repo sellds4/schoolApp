@@ -5,7 +5,7 @@ var gulp = require('gulp'),
     buffer = require('vinyl-buffer'),
     browserify = require('browserify'),
     watchify = require('watchify'),
-    reactify = require('reactify'),
+    babelify = require('babelify'),
     streamify = require('gulp-streamify'),
     gutil = require('gulp-util'),
     sourcemaps = require('gulp-sourcemaps'),
@@ -31,7 +31,7 @@ gulp.task('watch', function() {
 
     // var watcher  = watchify(browserify({
     //     entries: path.ENTRY_POINT,
-    //     transform: [reactify],
+    //     transform: [babelify],
     //     debug: true,
     //     cache: {}, packageCache: {}, fullPaths: true
     // }));
@@ -59,7 +59,7 @@ var opts = assign({}, watchify.args, customOpts);
 var b = watchify(browserify(opts)); 
 // add transformations here
 // i.e. b.transform(coffeeify);
-b.transform(reactify)
+b.transform(babelify)
 
 gulp.task('js', bundle); // so you can run `gulp js` to build the file
 b.on('update', bundle); // on any dep update, runs the bundler
@@ -82,7 +82,7 @@ function bundle() {
 gulp.task('build', function(){
     browserify({
         entries: path.ENTRY_POINT,
-        transform: [reactify],
+        transform: [babelify],
     })
     .bundle()
     .pipe(source(path.MINIFIED_OUT))
