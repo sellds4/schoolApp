@@ -1,11 +1,15 @@
 import json
+import uuid
 from dateutil.parser import parse
 from flask import Flask, session, render_template, request
 from flask.json import jsonify
 from flask.ext.sqlalchemy import SQLAlchemy
-from flask.ext.login import LoginManager
-from flask.ext.login import login_required
+from flask.ext.login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from flask.ext.bcrypt import Bcrypt
+# from sqlalchemy import db.ForeignKey, Table
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.types import Boolean, CHAR, Enum, Float, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
 
 app = Flask(__name__, static_url_path='', static_folder='client/dist')
 app.secret_key = 'clydecletusvonmetus'
@@ -18,31 +22,42 @@ login_manager.init_app(app)
 
 # Relationship Tables
 favorite_schools = db.Table("favorite_schools",
-    db.Column("student_id", db.Integer, db.ForeignKey("students.id"), nullable=False),
-    db.Column("school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False),
-    db.PrimaryKeyConstraint('student_id', 'school_id')
+    db.Column("student_id", UUID(as_uuid=True), db.ForeignKey("students.id"), nullable=False),
+    db.Column("school_id", UUID(as_uuid=True), db.ForeignKey("schools.id"), nullable=False)
 )
 
 viewed_schools = db.Table("viewed_schools",
-    db.Column("student_id", db.Integer, db.ForeignKey("students.id"), nullable=False),
-    db.Column("school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False),
-    db.PrimaryKeyConstraint('student_id', 'school_id')
+    db.Column("student_id", UUID(as_uuid=True), db.ForeignKey("students.id"), nullable=False),
+    db.Column("school_id", UUID(as_uuid=True), db.ForeignKey("schools.id"), nullable=False)
 )
 
 # Database models
-class Student(db.Model):
+class Student(db.Model, UserMixin):
     __tablename__ = "students"
-    id = db.Column(db.Integer, unique=True, primary_key=True)
-    email = db.Column(db.String(50), unique=True, nullable=False)
-    pw_hash = db.Column(db.String(255), nullable=False)
-    first_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(50), nullable=False)
-    state = db.Column(db.String(2))
-    major = db.Column(db.String(50))
-    favorite_schools = db.relationship('School', secondary=favorite_schools,
-        backref=db.backref('students_fav', lazy='dynamic'))
-    viewed_schools = db.relationship('School', secondary=viewed_schools,
-        backref=db.backref('students_viewed', lazy='dynamic'))
+    id = db.Column(UUID(as_uuid=True), default=lambda: str(uuid.uuid4()), primary_key=True)
+    email = db.Column(String(50), unique=True, nullable=False)
+    pw_hash = db.Column(String(255), nullable=False)
+    first_name = db.Column(String(50), nullable=False)
+    last_name = db.Column(String(50), nullable=False)
+    state = db.Column(Enum( 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', name='select_state'))
+    major = db.Column(String(50))
+    gender = db.Column(Enum('male', 'female', name='select_gender'))
+    act = db.Column(Integer)
+    sat_writing = db.Column(Integer)
+    sat_math = db.Column(Integer)
+    sat_cr = db.Column(Integer)
+    urbanization = db.Column(Enum('city', 'rural', 'suburb', 'town', name='select_urban'))
+    min_school_size = db.Column(Integer)
+    max_school_size =db.Column(Integer)
+    prefer_public = db.Column(Boolean, default=False)
+    prefer_private = db.Column(Boolean, default=False)
+    prefer_hbcu = db.Column(Boolean, default=False)
+    prefer_tribal = db.Column(Boolean, default=False)
+    prefer_religious = db.Column(Boolean, default=False)
+    favorite_schools = relationship('School', secondary=favorite_schools,
+        backref=backref('students_fav', lazy='dynamic'))
+    viewed_schools = relationship('School', secondary=viewed_schools,
+        backref=backref('students_viewed', lazy='dynamic'))
 
     def __init__(self, email, password, first_name, last_name):
         self.email = email
@@ -64,67 +79,67 @@ class Student(db.Model):
 
 class School(db.Model):
     __tablename__ = "schools"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    city = db.Column(db.String(50))
-    state_abbrv = db.Column(db.CHAR(2))
-    state = db.Column(db.String(30))
-    region = db.Column(db.String(50))
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
-    website = db.Column(db.String(50))
-    mascot = db.Column(db.String(50))
-    is_public = db.Column(db.Boolean)
-    is_private = db.Column(db.Boolean)
-    is_hbcu = db.Column(db.Boolean)
-    is_tribal = db.Column(db.Boolean)
-    is_religious = db.Column(db.Boolean)
-    religious_affiliation = db.Column(db.String(50))
-    urbanization = db.Column(db.String(10))
-    urbanization_degree = db.Column(db.String(20))
-    enrollment = db.Column(db.Integer)
-    enrollment_range = db.Column(db.String(20))
-    in_state_tuition = db.Column(db.Integer)
-    out_state_tuition = db.Column(db.Integer)
-    percent_admit = db.Column(db.Integer)
-    percent_admit_men = db.Column(db.Integer)
-    percent_admit_women = db.Column(db.Integer)
-    graduate_enrollment = db.Column(db.Integer)
-    undergrad_enrollment = db.Column(db.Integer)
-    percent_amerindian_aknative = db.Column(db.Integer)
-    percent_asian_nativehi_pacislander = db.Column(db.Integer)
-    percent_asian = db.Column(db.Integer)
-    percent_nativehi_pacislander = db.Column(db.Integer)
-    percent_aficanamer = db.Column(db.Integer)
-    percent_hispanic_latino = db.Column(db.Integer)
-    percent_white = db.Column(db.Integer)
-    percent_women = db.Column(db.Integer)
-    percent_amerindian_aknative_undergrad = db.Column(db.Integer)
-    percent_asian_nativehi_pacislander_undergrad = db.Column(db.Integer)
-    percent_asian_undergrad = db.Column(db.Integer)
-    percent_nativehi_pacislander_undergrad = db.Column(db.Integer)
-    percent_aficanamer_undergrad = db.Column(db.Integer)
-    percent_hispanic_latino_undergrad = db.Column(db.Integer)
-    percent_white_undergrad = db.Column(db.Integer)
-    percent_women_undergrad = db.Column(db.Integer)
-    percent_amerindian_aknative_grad = db.Column(db.Integer)
-    percent_asian_nativehi_pacislander_grad = db.Column(db.Integer)
-    percent_asian_grad = db.Column(db.Integer)
-    percent_nativehi_pacislander_grad = db.Column(db.Integer)
-    percent_aficanamer_grad = db.Column(db.Integer)
-    percent_hispanic_latino_grad = db.Column(db.Integer)
-    percent_white_grad = db.Column(db.Integer)
-    percent_women_grad = db.Column(db.Integer)
-    act_75th_percentile = db.Column(db.Integer)
-    act_25th_percentile = db.Column(db.Integer)
-    sat_writing_75th_percentile = db.Column(db.Integer)
-    sat_writing_25th_percentile = db.Column(db.Integer)
-    sat_math_75th_percentile = db.Column(db.Integer)
-    sat_math_25th_percentile = db.Column(db.Integer)
-    sat_cr_75th_percentile = db.Column(db.Integer)
-    sat_cr_25th_percentile = db.Column(db.Integer)
-    ipeds_id = db.Column(db.CHAR(6))
+    id = db.Column(UUID(as_uuid=True), default=lambda: str(uuid.uuid4()), primary_key=True)
+    name = db.Column(String(120))
+    address = db.Column(String(120))
+    city = db.Column(String(50))
+    state_abbrv = db.Column(CHAR(2))
+    state = db.Column(String(30))
+    region = db.Column(String(50))
+    latitude = db.Column(Float)
+    longitude = db.Column(Float)
+    website = db.Column(String(50))
+    mascot = db.Column(String(50))
+    is_public = db.Column(Boolean)
+    is_private = db.Column(Boolean)
+    is_hbcu = db.Column(Boolean)
+    is_tribal = db.Column(Boolean)
+    is_religious = db.Column(Boolean)
+    religious_affiliation = db.Column(String(50))
+    urbanization = db.Column(String(10))
+    urbanization_degree = db.Column(String(20))
+    enrollment = db.Column(Integer)
+    enrollment_range = db.Column(String(20))
+    in_state_tuition = db.Column(Integer)
+    out_state_tuition = db.Column(Integer)
+    percent_admit = db.Column(Integer)
+    percent_admit_men = db.Column(Integer)
+    percent_admit_women = db.Column(Integer)
+    graduate_enrollment = db.Column(Integer)
+    undergrad_enrollment = db.Column(Integer)
+    percent_amerindian_aknative = db.Column(Integer)
+    percent_asian_nativehi_pacislander = db.Column(Integer)
+    percent_asian = db.Column(Integer)
+    percent_nativehi_pacislander = db.Column(Integer)
+    percent_aficanamer = db.Column(Integer)
+    percent_hispanic_latino = db.Column(Integer)
+    percent_white = db.Column(Integer)
+    percent_women = db.Column(Integer)
+    percent_amerindian_aknative_undergrad = db.Column(Integer)
+    percent_asian_nativehi_pacislander_undergrad = db.Column(Integer)
+    percent_asian_undergrad = db.Column(Integer)
+    percent_nativehi_pacislander_undergrad = db.Column(Integer)
+    percent_aficanamer_undergrad = db.Column(Integer)
+    percent_hispanic_latino_undergrad = db.Column(Integer)
+    percent_white_undergrad = db.Column(Integer)
+    percent_women_undergrad = db.Column(Integer)
+    percent_amerindian_aknative_grad = db.Column(Integer)
+    percent_asian_nativehi_pacislander_grad = db.Column(Integer)
+    percent_asian_grad = db.Column(Integer)
+    percent_nativehi_pacislander_grad = db.Column(Integer)
+    percent_aficanamer_grad = db.Column(Integer)
+    percent_hispanic_latino_grad = db.Column(Integer)
+    percent_white_grad = db.Column(Integer)
+    percent_women_grad = db.Column(Integer)
+    act_75th_percentile = db.Column(Integer)
+    act_25th_percentile = db.Column(Integer)
+    sat_writing_75th_percentile = db.Column(Integer)
+    sat_writing_25th_percentile = db.Column(Integer)
+    sat_math_75th_percentile = db.Column(Integer)
+    sat_math_25th_percentile = db.Column(Integer)
+    sat_cr_75th_percentile = db.Column(Integer)
+    sat_cr_25th_percentile = db.Column(Integer)
+    ipeds_id = db.Column(CHAR(6))
 
 db.create_all()
 db.session.commit()
@@ -250,17 +265,12 @@ class SchoolJsonSerializer(JsonSerializer):
 # Routes
 @app.route('/api/login', methods=['GET', 'POST'])
 def login():
-    # Here we use a class of some kind to represent and validate our
-    # client-side form data. For example, WTForms is a library that will
-    # handle this for us.
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = Student.query.filter_by(email=form.username.data).first_or_404()
-        if user.is_valid_password(form.password.data):
-            session['user_id'] = email
-            login_user(user)
-            flask.flash('Logged in successfully.')
-
+    email = request.form['email']
+    password = request.form['password']
+    user = Student.query.filter_by(email=email).first_or_404()
+    if user.is_valid_password(password):
+        login_user(user, remember=True)
+        flask.flash('Logged in successfully.')
         next = flask.request.args.get('next')
         if not next_is_valid(next):
             return flask.abort(400)
@@ -292,11 +302,11 @@ def create_student():
 
 @app.route('/api/student/school', methods=['POST'])
 def add_viewed():
-    school_name = request.json.get('school_name','')
-    is_Favorite = request.json.get('is_Favorite','')
-    user_id = session['user_id']
+    school_name = request.form['school_name']
+    is_Favorite = request.form['is_Favorite']
+    user_id = current_user.get_id()
     school = School.query.filter_by(name=school_name).first_or_404()
-    # user_id = 'test2@test2.com'
+    user_id = 'test2@test2.com'
     student = Student.query.filter_by(email=user_id).first_or_404()
     message = None
     for item in student.viewed_schools:
@@ -327,6 +337,7 @@ def get_schools():
 # @app.route('/', defaults={'path': ''})
 # @app.route('/<path:path>')
 @app.route('/')
+@app.route('/login')
 @app.route('/register')
 def index():
     return app.send_static_file('index.html')

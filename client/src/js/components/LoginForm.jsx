@@ -1,35 +1,31 @@
 import React from 'react'
 
-var RegisterForm = React.createClass({
+var LoginForm = React.createClass({
     render: function() {
         return (
             <div>
-                <form className="registerForm" onSubmit={this.handleSubmit}>
-                    <input type="text" name="firstName" placeholder="first name" ref="firstName" />
-                    <input type="text" name="lastName" placeholder="last name" ref="lastName" />
+                <form className="loginForm" onSubmit={this.handleSubmit}>
                     <input type="email" name="email" placeholder="email" ref="email" />
                     <input type="password" name="password" placeholder="password" ref="password"/>
-                    <button type="submit">Submit</button>
+                    <button type="submit">Login</button>
                 </form>
             </div>
         )
     },
     handleSubmit: function(e) {
         e.preventDefault();
-        var firstName = React.findDOMNode(this.refs.firstName).value.trim(),
-            lastName = React.findDOMNode(this.refs.lastName).value.trim(),
-            email = React.findDOMNode(this.refs.email).value.trim(),
+        var email = React.findDOMNode(this.refs.email).value.trim(),
             password = React.findDOMNode(this.refs.password).value.trim();
 
-        if (!firstName || !lastName || !email || !password) {
+        if (!email || !password) {
             return;
         }
-        this.regSubmit({first_name: firstName, last_name: lastName, email: email, password: password});
+        this.loginSubmit({email: email, password: password});
         return;
     },
-    regSubmit: function(regData) {
+    loginSubmit: function(regData) {
         $.ajax({
-            url: '/api/student',
+            url: '/api/login',
             dataType: 'json',
             type: 'POST',
             data: regData,
@@ -43,4 +39,4 @@ var RegisterForm = React.createClass({
     }
 })
 
-module.exports = RegisterForm;
+module.exports = LoginForm;

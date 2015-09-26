@@ -5,6 +5,7 @@ import createBrowserHistory from '../../node_modules/react-router/node_modules/h
 var history = createBrowserHistory();
 
 // components
+var LoginForm = require('./components/LoginForm.jsx');
 var RegisterForm = require('./components/RegisterForm.jsx');
 
 var App = React.createClass({
@@ -33,6 +34,7 @@ var routes = (
     <Router>
         <Route path="/" component={App}>
             <IndexRoute component={Home}/>
+            <Route path="login" component={LoginForm}/>
             <Route path="register" component={RegisterForm}/>
         </Route>
     </Router>
