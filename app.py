@@ -1,12 +1,11 @@
 import json
 import uuid
 from dateutil.parser import parse
-from flask import Flask, session, render_template, request
+from flask import Flask, make_response, render_template, request, session
 from flask.json import jsonify
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from flask.ext.bcrypt import Bcrypt
-# from sqlalchemy import db.ForeignKey, Table
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.types import Boolean, CHAR, Enum, Float, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,19 +21,20 @@ login_manager.init_app(app)
 
 # Relationship Tables
 favorite_schools = db.Table("favorite_schools",
-    db.Column("student_id", UUID(as_uuid=True), db.ForeignKey("students.id"), nullable=False),
-    db.Column("school_id", UUID(as_uuid=True), db.ForeignKey("schools.id"), nullable=False)
+    db.Column("student_id", db.Integer, db.ForeignKey("students.id"), nullable=False),
+    db.Column("school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False)
 )
 
 viewed_schools = db.Table("viewed_schools",
-    db.Column("student_id", UUID(as_uuid=True), db.ForeignKey("students.id"), nullable=False),
-    db.Column("school_id", UUID(as_uuid=True), db.ForeignKey("schools.id"), nullable=False)
+    db.Column("student_id", db.Integer, db.ForeignKey("students.id"), nullable=False),
+    db.Column("school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False)
 )
 
 # Database models
 class Student(db.Model, UserMixin):
     __tablename__ = "students"
-    id = db.Column(UUID(as_uuid=True), default=lambda: str(uuid.uuid4()), primary_key=True)
+    # id = db.Column(UUID(as_uuid=True), default=lambda: str(uuid.uuid4()), primary_key=True)
+    id = db.Column(db.Integer, unique=True, primary_key=True)
     email = db.Column(String(50), unique=True, nullable=False)
     pw_hash = db.Column(String(255), nullable=False)
     first_name = db.Column(String(50), nullable=False)
@@ -68,18 +68,18 @@ class Student(db.Model, UserMixin):
     def is_valid_password(self, pw_attempt):
         return bcrypt.check_password_hash(self.pw_hash, pw_attempt)
 
-    def get_id(self):
-        try:
-            return unicode(self.id)
-        except:
-            return flask.flash("No user found")
+    # def get_id(self):
+    #     try:
+    #         return unicode(self.id)
+    #     except:
+    #         return flask.flash("No user found")
 
     # def is_authenticated(self):
     #     return self.authenticated
 
 class School(db.Model):
     __tablename__ = "schools"
-    id = db.Column(UUID(as_uuid=True), default=lambda: str(uuid.uuid4()), primary_key=True)
+    id = db.Column(db.Integer, unique=True, primary_key=True)
     name = db.Column(String(120))
     address = db.Column(String(120))
     city = db.Column(String(50))
@@ -146,7 +146,7 @@ db.session.commit()
 
 @login_manager.user_loader
 def load_student(user_id):
-    return Student.get(user_id)
+    return Student.query.get(user_id)
 
 # @app.before_request
 # def load_user():
@@ -263,23 +263,25 @@ class SchoolJsonSerializer(JsonSerializer):
     __object_class__ = School
 
 # Routes
-@app.route('/api/login', methods=['GET', 'POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
+    response = make_response()
     email = request.form['email']
     password = request.form['password']
     user = Student.query.filter_by(email=email).first_or_404()
     if user.is_valid_password(password):
-        login_user(user, remember=True)
-        flask.flash('Logged in successfully.')
-        next = flask.request.args.get('next')
-        if not next_is_valid(next):
-            return flask.abort(400)
-
-        return flask.redirect(next or flask.url_for('index'))
-    return flask.render_template('login.html', form=form)
+        login_user(user, force=True)
+        print('Logged in successfully.')
+        print current_user.get_id()
+        print current_user.is_authenticated()
+        response.data = json.dumps({'data': True})
+        # return json.dumps({'success':True}), 200, {'ContentType':'application/json'}
+    else:
+        response.data = json.dumps({'data': False})
+    return response
 
 @app.route('/api/logout')
-@login_required
+# @login_required
 def logout():
     logout_user()
     session.clear()
@@ -301,27 +303,35 @@ def create_student():
     # return render_template('index.html')
 
 @app.route('/api/student/school', methods=['POST'])
+# @login_required
 def add_viewed():
+    print current_user.is_authenticated()
     school_name = request.form['school_name']
     is_Favorite = request.form['is_Favorite']
-    user_id = current_user.get_id()
+    # user_id = current_user.get_id()
     school = School.query.filter_by(name=school_name).first_or_404()
-    user_id = 'test2@test2.com'
+    user_id = 'test1@test1.com'
     student = Student.query.filter_by(email=user_id).first_or_404()
-    message = None
-    for item in student.viewed_schools:
-        if item.id == school.id:
-            message = "Viewed"
-            break
-        else:
-            student.viewed_schools.append(school)
-    if is_Favorite:
-        for item in student.favorite_schools:
+    message = ""
+    if len(student.viewed_schools) == 0:
+        student.viewed_schools.append(school)
+    else:
+        for item in student.viewed_schools:
             if item.id == school.id:
-                message = message + " Favorited"
-                return message
+                message = "Viewed"
+                break
             else:
-                student.favorite_schools.append(school)
+                student.viewed_schools.append(school)
+    if is_Favorite:
+        if len(student.favorite_schools) == 0:
+            student.favorite_schools.append(school)
+        else:
+            for item in student.favorite_schools:
+                if item.id == school.id:
+                    message = message + " Favorited"
+                    return message
+                else:
+                    student.favorite_schools.append(school)
     db.session.commit()
     return "complete"
 
@@ -337,6 +347,7 @@ def get_schools():
 # @app.route('/', defaults={'path': ''})
 # @app.route('/<path:path>')
 @app.route('/')
+@app.route('/campus')
 @app.route('/login')
 @app.route('/register')
 def index():

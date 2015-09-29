@@ -1,10 +1,10 @@
 import React from 'react'
 
-var LoginForm = React.createClass({
+var CampusForm = React.createClass({
     render: function() {
         return (
             <div>
-                <form className="loginForm" onSubmit={this.handleSubmit}>
+                <form className="campusForm" onSubmit={this.handleSubmit}>
                     <input type="email" name="email" placeholder="email" ref="email" />
                     <input type="password" name="password" placeholder="password" ref="password" />
                     <button type="submit">Login</button>
@@ -40,4 +40,4 @@ var LoginForm = React.createClass({
     }
 });
 
-module.exports = LoginForm;
+module.exports = CampusForm;
